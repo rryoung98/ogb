@@ -7,102 +7,158 @@
 [![PyPI](https://img.shields.io/pypi/v/ogb)](https://pypi.org/project/ogb/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/snap-stanford/ogb/blob/master/LICENSE)
 
-## News!
+<img src="./docs/source/_static/logo.png" alt="The logo of Paddle Graph Learning (PGL)" width="320">
 
-Check out [OGB Large-Scale Challenge](https://ogb.stanford.edu/kddcup2021/) at KDD Cup 2021, happening from March 15 to June 8, 2021. All the datasets are accessible through this package `ogb>=1.3.0`.
+[![PyPi Latest Release](https://img.shields.io/pypi/v/pgl.svg)](https://pypi.org/project/pgl/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
-## Overview
+## Breaking News !!
+PGL v2.1 20210202
 
-The Open Graph Benchmark (OGB) is a collection of benchmark datasets, data loaders, and evaluators for graph machine learning. Datasets cover a variety of graph machine learning tasks and real-world applications.
-The OGB data loaders are fully compatible with popular graph deep learning frameworks, including [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/) and [Deep Graph Library (DGL)](https://www.dgl.ai/). They provide automatic dataset downloading, standardized dataset splits, and unified performance evaluation.
+- We are now support dygraph version of PaddlePaddle 2.0, and release PGL v2.1.
+- You can find the stable staic version of PGL in the branch "static_stable"
 
-<p align='center'>
-  <img width='80%' src='https://snap-stanford.github.io/ogb-web/assets/img/ogb_overview.png' />
-</p>
+PGL v1.2 2020.11.20
 
-OGB aims to provide graph datasets that cover important graph machine learning tasks, diverse dataset scale, and rich domains.
+- The PGL team proposed a new **Uni**fied **M**essage **P**assing Model (UniMP), and achieved the State of the Art on three tasks on the OGB leaderboards. You can find the code [here](./ogb_examples/nodeproppred/unimp).
 
-**Graph ML Tasks:** We cover three fundamental graph machine learning tasks: prediction at the level of nodes, links, and graphs.
+- The PGL team proposed a two-stage recall and ranking model based on **ERNIEsage**, and won the **first place** in the [TextGraphs-2020](https://competitions.codalab.org/competitions/23615) competition co-organized by COLING.
 
-**Diverse scale:** Small-scale graph datasets can be processed within a single GPU, while medium- and large-scale graphs might require multiple GPUs or clever sampling/partition techniques.
+- The PGL team worked hard to develop an **open course of Graph Neural Network (GNN)**, which will help you getting started with Graph Neural Network in seven days. Details can be found in [course](https://github.com/PaddlePaddle/PGL/tree/main/course).
 
-**Rich domains:** Graph datasets come from diverse domains ranging from scientific ones to social/information networks, and also include heterogeneous knowledge graphs. 
+PGL v1.1 2020.4.29
 
-<p align='center'>
-  <img width='70%' src='https://snap-stanford.github.io/ogb-web/assets/img/dataset_overview.png' />
-</p>
+- You can find **ERNIESage**, a novel model for modeling text and graph structures, and its introduction [here](./legacy/examples/erniesage/).
 
-OGB is an on-going effort, and we are planning to increase our coverage in the future.
+- PGL for [Open Graph Benchmark](https://github.com/snap-stanford/ogb) examples can be found [here](./ogb_examples/).
+
+- We add newly graph level operators like **GraphPooling** and [**GraphNormalization**](https://arxiv.org/abs/2003.00982) for graph level predictions.
+
+- We relase a PGL-KE toolkit [here](./examples/pgl-ke) including classical knowledge graph embedding t algorithms like TransE, TransR, RotatE.
+
+------
+
+Paddle Graph Learning (PGL) is an efficient and flexible graph learning framework based on [PaddlePaddle](https://github.com/PaddlePaddle/Paddle).
+
+
+<img src="./docs/source/_static/framework_of_pgl_en.png" alt="The Framework of Paddle Graph Learning (PGL)" width="800">
+
+The newly released PGL supports heterogeneous graph learning on both walk based paradigm and message-passing based paradigm by providing MetaPath sampling and Message Passing mechanism on heterogeneous graph. Furthermor, The newly released PGL also support distributed graph storage and some distributed training algorithms, such as distributed deep walk and distributed graphsage. Combined with the PaddlePaddle deep learning framework, we are able to support both graph representation learning models and graph neural networks, and thus our framework has a wide range of graph-based applications.
+
+
+One of the most important benefits of graph neural networks compared to other models is the ability to use node-to-node connectivity information, but coding the communication between nodes is very cumbersome. At PGL we adopt **Message Passing Paradigm** similar to [DGL](https://github.com/dmlc/dgl) to help to build a customize graph neural network easily. Users only need to write ```send``` and ```recv``` functions to easily implement a simple GCN. As shown in the following figure, for the first step the send function is defined on the edges of the graph, and the user can customize the send function ![](http://latex.codecogs.com/gif.latex?\\phi^e) to send the message from the source to the target node. For the second step, the recv function ![](http://latex.codecogs.com/gif.latex?\\phi^v) is responsible for aggregating ![](http://latex.codecogs.com/gif.latex?\\oplus) messages together from different sources.
+
+<img src="./docs/source/_static/message_passing_paradigm.png" alt="The basic idea of message passing paradigm" width="800">
+
+
+To write a sum aggregator, users only need to write the following codes.
+
+```python
+
+    import pgl
+    import paddle
+    import numpy as np
+
+    
+    num_nodes = 5
+    edges = [(0, 1), (1, 2), (3, 4)]
+    feature = np.random.randn(5, 100).astype(np.float32)
+
+    g = pgl.Graph(num_nodes=num_nodes,
+        edges=edges,
+        node_feat={
+            "h": feature
+        })
+    g.tensor()
+
+    def send_func(src_feat, dst_feat, edge_feat):
+        return src_feat
+
+    def recv_func(msg):
+        return msg.reduce_sum(msg["h"]) 
+     
+    msg = g.send(send_func, src_feat=g.node_feat)
+
+    ret = g.recv(recv_func, msg)
+
+```
+
+
+## Highlight: Flexibility - Natively Support Heterogeneous Graph Learning
+
+Graph can conveniently represent the relation between things in the real world, but the categories of things and the relation between things are various. Therefore, in the heterogeneous graph, we need to distinguish the node types and edge types in the graph network. PGL models heterogeneous graphs that contain multiple node types and multiple edge types, and can describe complex connections between different types.
+
+### Support meta path walk sampling on heterogeneous graph
+
+<img src="./docs/source/_static/metapath_sampling.png" alt="The metapath sampling in heterogeneous graph" width="800">
+The left side of the figure above describes a shopping social network. The nodes above have two categories of users and goods, and the relations between users and users, users and goods, and goods and goods. The right of the above figure is a simple sampling process of MetaPath. When you input any MetaPath as UPU (user-product-user), you will find the following results
+<img src="./docs/source/_static/metapath_result.png" alt="The metapath result" width="320">
+Then on this basis, and introducing word2vec and other methods to support learning metapath2vec and other algorithms of heterogeneous graph representation.
+
+### Support Message Passing mechanism on heterogeneous graph
+
+<img src="./docs/source/_static/him_message_passing.png" alt="The message passing mechanism on heterogeneous graph" width="800">
+Because of the different node types on the heterogeneous graph, the message delivery is also different. As shown on the left, it has five neighbors, belonging to two different node types. As shown on the right of the figure above, nodes belonging to different types need to be aggregated separately during message delivery, and then merged into the final message to update the target node. On this basis, PGL supports heterogeneous graph algorithms based on message passing, such as GATNE and other algorithms.
+
+
+## Large-Scale: Support distributed graph storage and distributed training algorithms
+
+In most cases of large-scale graph learning, we need distributed graph storage and distributed training support. As shown in the following figure, PGL provided a general solution of large-scale training, we adopted [PaddleFleet](https://github.com/PaddlePaddle/Fleet) as our distributed parameter servers, which supports large scale distributed embeddings and a lightweighted distributed storage engine so it can easily set up a large scale distributed training algorithm with MPI clusters.
+
+<img src="./docs/source/_static/distributed_frame.png" alt="The distributed frame of PGL" width="800">
+
+
+## Model Zoo
+
+The following graph learning models have been implemented in the framework. You can find more [examples](./examples) and the details [here](https://pgl.readthedocs.io/en/latest/introduction.html#highlight-tons-of-models).
+
+|Model | feature |
+|---|---|
+| [ERNIESage](./legacy/examples/erniesage/) | ERNIE SAmple aggreGatE for Text and Graph |
+| [GCN](./examples/gcn/) | Graph Convolutional Neural Networks |
+| [GAT](./examples/gat/) | Graph Attention Network |
+| [GraphSage](./examples/graphsage/) |Large-scale graph convolution network based on neighborhood sampling|
+| [unSup-GraphSage](./legacy/examples/unsup_graphsage/) | Unsupervised GraphSAGE |
+| [LINE](./legacy/examples/line/) | Representation learning based on first-order and second-order neighbors |
+| [DeepWalk](./examples/deepwalk/) | Representation learning by DFS random walk |
+| [MetaPath2Vec](./legacy/examples/metapath2vec/) | Representation learning based on metapath |
+| [Node2Vec](./legacy/examples/node2vec/) | The representation learning Combined with DFS and BFS  |
+| [Struct2Vec](./legacy/examples/strucvec/) | Representation learning based on structural similarity |
+| [SGC](./legacy/examples/sgc/) | Simplified graph convolution neural network |
+| [GES](./legacy/examples/ges/) | The graph represents learning method with node features |
+| [DGI](./legacy/examples/dgi/) | Unsupervised representation learning based on graph convolution network |
+| [GATNE](./legacy/examples/GATNE) | Representation Learning of Heterogeneous Graph based on MessagePassing |
+
+The above models consists of three parts, namely, graph representation learning, graph neural network and heterogeneous graph learning, which are also divided into graph representation learning and graph neural network.
+
+## System requirements
+
+PGL requires:
+
+* paddle >= 2.0.0 
+* cython
+
+
+PGL only supports Python 3
+
 
 ## Installation
-You can install OGB using Python's package manager `pip`.
-**If you have previously installed ogb, please make sure you update the version to 1.3.0.**
-The release note is available [here](https://github.com/snap-stanford/ogb/releases/tag/1.3.0).
 
-#### Requirements
- - Python>=3.6
- - PyTorch>=1.2
- - DGL>=0.5.0 or torch-geometric>=1.6.0
- - Numpy>=1.16.0
- - pandas>=0.24.0
- - urllib3>=1.24.0
- - scikit-learn>=0.20.0
- - outdated>=0.2.0
+You can simply install it via pip.
 
- **Note:** `torch-geometric>=1.6.0` is recommended to run our [example code](https://github.com/snap-stanford/ogb/tree/master/examples).
-
-#### Pip install
-The recommended way to install OGB is using Python's package manager pip:
-```bash
-pip install ogb
+```sh
+pip install pgl
 ```
 
-```bash
-python -c "import ogb; print(ogb.__version__)"
-# This should print "1.3.0". Otherwise, please update the version by
-pip install -U ogb
-```
+## The Team
 
+PGL is developed and maintained by NLP and Paddle Teams at Baidu
 
-#### From source
-You can also install OGB from source. This is recommended if you want to contribute to OGB.
-```bash
-git clone https://github.com/snap-stanford/ogb
-cd ogb
-pip install -e .
-```
+E-mail: nlp-gnn[at]baidu.com
 
-## Package Usage
-We highlight two key features of OGB, namely, (1) easy-to-use data loaders, and (2) standardized evaluators.
-#### (1) Data loaders
-We prepare easy-to-use PyTorch Geometric and DGL data loaders. We handle dataset downloading as well as standardized dataset splitting.
-Below, on PyTorch Geometric, we see that a few lines of code is sufficient to prepare and split the dataset! Needless to say, you can enjoy the same convenience for DGL!
-```python
-from ogb.graphproppred import PygGraphPropPredDataset
-from torch_geometric.data import DataLoader
+## License
 
-# Download and process data at './dataset/ogbg_molhiv/'
-dataset = PygGraphPropPredDataset(name = 'ogbg-molhiv')
-
-split_idx = dataset.get_idx_split() 
-train_loader = DataLoader(dataset[split_idx['train']], batch_size=32, shuffle=True)
-valid_loader = DataLoader(dataset[split_idx['valid']], batch_size=32, shuffle=False)
-test_loader = DataLoader(dataset[split_idx['test']], batch_size=32, shuffle=False)
-```
-
-#### (2) Evaluators
-We also prepare standardized evaluators for easy evaluation and comparison of different methods. The evaluator takes `input_dict` (a dictionary whose format is specified in `evaluator.expected_input_format`) as input, and returns a dictionary storing the performance metric appropriate for the given dataset.
-The standardized evaluation protocol allows researchers to reliably compare their methods.
-```python
-from ogb.graphproppred import Evaluator
-
-evaluator = Evaluator(name = 'ogbg-molhiv')
-# You can learn the input and output format specification of the evaluator as follows.
-# print(evaluator.expected_input_format) 
-# print(evaluator.expected_output_format) 
-input_dict = {'y_true': y_true, 'y_pred': y_pred}
-result_dict = evaluator.eval(input_dict) # E.g., {'rocauc': 0.7321}
-```
+PGL uses Apache License 2.0.
 
 ## Citing OGB
 If you use OGB datasets in your work, please cite our paper (Bibtex below).
