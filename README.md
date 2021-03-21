@@ -7,155 +7,59 @@
 
 [![PyPi Latest Release](https://img.shields.io/pypi/v/pgl.svg)](https://pypi.org/project/pgl/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+## Masked Label Prediction: Unified Message Passing Model for Semi-Supervised Classification
 
-## Breaking News !!
-PGL v2.1 20210202
+This experiment is based on stanford OGB (1.2.1) benchmark. The description of 《Differentiable Group Normalization: Unified Message Passing Model for Semi-Supervised Classification》 is [avaiable here](https://arxiv.org/abs/2006.06972). The steps are:
 
-- We are now support dygraph version of PaddlePaddle 2.0, and release PGL v2.1.
-- You can find the stable staic version of PGL in the branch "static_stable"
+### Note!
+We propose **UniMP_large**, where we extend our base model's width by increasing ```head_num```, and make it deeper by incorporating [APPNP](https://www.in.tum.de/daml/ppnp/) . Moreover, we firstly propose a new **Attention based APPNP** to further improve our model's performance.
 
-PGL v1.2 2020.11.20
-
-- The PGL team proposed a new **Uni**fied **M**essage **P**assing Model (UniMP), and achieved the State of the Art on three tasks on the OGB leaderboards. You can find the code [here](./ogb_examples/nodeproppred/unimp).
-
-- The PGL team proposed a two-stage recall and ranking model based on **ERNIEsage**, and won the **first place** in the [TextGraphs-2020](https://competitions.codalab.org/competitions/23615) competition co-organized by COLING.
-
-- The PGL team worked hard to develop an **open course of Graph Neural Network (GNN)**, which will help you getting started with Graph Neural Network in seven days. Details can be found in [course](https://github.com/PaddlePaddle/PGL/tree/main/course).
-
-PGL v1.1 2020.4.29
-
-- You can find **ERNIESage**, a novel model for modeling text and graph structures, and its introduction [here](./legacy/examples/erniesage/).
-
-- PGL for [Open Graph Benchmark](https://github.com/snap-stanford/ogb) examples can be found [here](./ogb_examples/).
-
-- We add newly graph level operators like **GraphPooling** and [**GraphNormalization**](https://arxiv.org/abs/2003.00982) for graph level predictions.
-
-- We relase a PGL-KE toolkit [here](./examples/pgl-ke) including classical knowledge graph embedding t algorithms like TransE, TransR, RotatE.
-
-------
-
-Paddle Graph Learning (PGL) is an efficient and flexible graph learning framework based on [PaddlePaddle](https://github.com/PaddlePaddle/Paddle).
-
-
-<img src="./docs/source/_static/framework_of_pgl_en.png" alt="The Framework of Paddle Graph Learning (PGL)" width="800">
-
-The newly released PGL supports heterogeneous graph learning on both walk based paradigm and message-passing based paradigm by providing MetaPath sampling and Message Passing mechanism on heterogeneous graph. Furthermor, The newly released PGL also support distributed graph storage and some distributed training algorithms, such as distributed deep walk and distributed graphsage. Combined with the PaddlePaddle deep learning framework, we are able to support both graph representation learning models and graph neural networks, and thus our framework has a wide range of graph-based applications.
-
-
-One of the most important benefits of graph neural networks compared to other models is the ability to use node-to-node connectivity information, but coding the communication between nodes is very cumbersome. At PGL we adopt **Message Passing Paradigm** similar to [DGL](https://github.com/dmlc/dgl) to help to build a customize graph neural network easily. Users only need to write ```send``` and ```recv``` functions to easily implement a simple GCN. As shown in the following figure, for the first step the send function is defined on the edges of the graph, and the user can customize the send function ![](http://latex.codecogs.com/gif.latex?\\phi^e) to send the message from the source to the target node. For the second step, the recv function ![](http://latex.codecogs.com/gif.latex?\\phi^v) is responsible for aggregating ![](http://latex.codecogs.com/gif.latex?\\oplus) messages together from different sources.
-
-<img src="./docs/source/_static/message_passing_paradigm.png" alt="The basic idea of message passing paradigm" width="800">
-
-
-To write a sum aggregator, users only need to write the following codes.
-
-```python
-
-    import pgl
-    import paddle
-    import numpy as np
-
+### Install environment:
+``` 
+    git clone https://github.com/PaddlePaddle/PGL.git
+    cd PGL
+    pip install -e 
+    pip install -r requirements.txt
     
-    num_nodes = 5
-    edges = [(0, 1), (1, 2), (3, 4)]
-    feature = np.random.randn(5, 100).astype(np.float32)
-
-    g = pgl.Graph(num_nodes=num_nodes,
-        edges=edges,
-        node_feat={
-            "h": feature
-        })
-    g.tensor()
-
-    def send_func(src_feat, dst_feat, edge_feat):
-        return src_feat
-
-    def recv_func(msg):
-        return msg.reduce_sum(msg["h"]) 
-     
-    msg = g.send(send_func, src_feat=g.node_feat)
-
-    ret = g.recv(recv_func, msg)
+```
+### Arxiv dataset:
+  1. ```python main_arxiv.py --place 0 --log_file arxiv_baseline.txt``` to get the baseline result of arxiv dataset.
+  2. ```python main_arxiv.py --place 0 --use_label_e --log_file arxiv_unimp.txt``` to get the UniMP result of arxiv dataset.
+  3. ```python main_arxiv_large.py --place 0 --use_label_e --log_file arxiv_unimp_large.txt``` to get the UniMP_large result of arxiv dataset.
+  
+### Products dataset:
+  1. ```python main_product.py --place 0 --log_file product_unimp.txt --use_label_e``` to get the UniMP result of Products dataset.
+  
+### Proteins dataset:
+  1. ```python main_protein.py --place 0 --log_file protein_baseline.txt ``` to get the baseline result of Proteins dataset.
+  2. ```python main_protein.py --place 0 --use_label_e --log_file protein_unimp.txt``` to get the UniMP result of Proteins dataset.
+  
+### The **detailed hyperparameter** is:
 
 ```
-
-
-## Highlight: Flexibility - Natively Support Heterogeneous Graph Learning
-
-Graph can conveniently represent the relation between things in the real world, but the categories of things and the relation between things are various. Therefore, in the heterogeneous graph, we need to distinguish the node types and edge types in the graph network. PGL models heterogeneous graphs that contain multiple node types and multiple edge types, and can describe complex connections between different types.
-
-### Support meta path walk sampling on heterogeneous graph
-
-<img src="./docs/source/_static/metapath_sampling.png" alt="The metapath sampling in heterogeneous graph" width="800">
-The left side of the figure above describes a shopping social network. The nodes above have two categories of users and goods, and the relations between users and users, users and goods, and goods and goods. The right of the above figure is a simple sampling process of MetaPath. When you input any MetaPath as UPU (user-product-user), you will find the following results
-<img src="./docs/source/_static/metapath_result.png" alt="The metapath result" width="320">
-Then on this basis, and introducing word2vec and other methods to support learning metapath2vec and other algorithms of heterogeneous graph representation.
-
-### Support Message Passing mechanism on heterogeneous graph
-
-<img src="./docs/source/_static/him_message_passing.png" alt="The message passing mechanism on heterogeneous graph" width="800">
-Because of the different node types on the heterogeneous graph, the message delivery is also different. As shown on the left, it has five neighbors, belonging to two different node types. As shown on the right of the figure above, nodes belonging to different types need to be aggregated separately during message delivery, and then merged into the final message to update the target node. On this basis, PGL supports heterogeneous graph algorithms based on message passing, such as GATNE and other algorithms.
-
-
-## Large-Scale: Support distributed graph storage and distributed training algorithms
-
-In most cases of large-scale graph learning, we need distributed graph storage and distributed training support. As shown in the following figure, PGL provided a general solution of large-scale training, we adopted [PaddleFleet](https://github.com/PaddlePaddle/Fleet) as our distributed parameter servers, which supports large scale distributed embeddings and a lightweighted distributed storage engine so it can easily set up a large scale distributed training algorithm with MPI clusters.
-
-<img src="./docs/source/_static/distributed_frame.png" alt="The distributed frame of PGL" width="800">
-
-
-## Model Zoo
-
-The following graph learning models have been implemented in the framework. You can find more [examples](./examples) and the details [here](https://pgl.readthedocs.io/en/latest/introduction.html#highlight-tons-of-models).
-
-|Model | feature |
-|---|---|
-| [ERNIESage](./legacy/examples/erniesage/) | ERNIE SAmple aggreGatE for Text and Graph |
-| [GCN](./examples/gcn/) | Graph Convolutional Neural Networks |
-| [GAT](./examples/gat/) | Graph Attention Network |
-| [GraphSage](./examples/graphsage/) |Large-scale graph convolution network based on neighborhood sampling|
-| [unSup-GraphSage](./legacy/examples/unsup_graphsage/) | Unsupervised GraphSAGE |
-| [LINE](./legacy/examples/line/) | Representation learning based on first-order and second-order neighbors |
-| [DeepWalk](./examples/deepwalk/) | Representation learning by DFS random walk |
-| [MetaPath2Vec](./legacy/examples/metapath2vec/) | Representation learning based on metapath |
-| [Node2Vec](./legacy/examples/node2vec/) | The representation learning Combined with DFS and BFS  |
-| [Struct2Vec](./legacy/examples/strucvec/) | Representation learning based on structural similarity |
-| [SGC](./legacy/examples/sgc/) | Simplified graph convolution neural network |
-| [GES](./legacy/examples/ges/) | The graph represents learning method with node features |
-| [DGI](./legacy/examples/dgi/) | Unsupervised representation learning based on graph convolution network |
-| [GATNE](./legacy/examples/GATNE) | Representation Learning of Heterogeneous Graph based on MessagePassing |
-
-The above models consists of three parts, namely, graph representation learning, graph neural network and heterogeneous graph learning, which are also divided into graph representation learning and graph neural network.
-
-## System requirements
-
-PGL requires:
-
-* paddle >= 2.0.0 
-* cython
-
-
-PGL only supports Python 3
-
-
-## Installation
-
-You can simply install it via pip.
-
-```sh
-pip install pgl
+Arxiv_dataset(Full Batch):          Products_dataset(NeighborSampler):          Proteins_dataset(Random Partition):
+--num_layers        3               --num_layers                3               --num_layers                7                   
+--hidden_size       128             --hidden_size               128             --hidden_size               64               
+--num_heads         2               --num_heads                 4               --num_heads                 4
+--dropout           0.3             --dropout                   0.3             --dropout                   0.1
+--lr                0.001           --lr                        0.001           --lr                        0.001
+--use_label_e       True            --use_label_e               True            --use_label_e               True
+--label_rate        0.625           --label_rate                0.625           --label_rate                0.5 
+--weight_decay.     0.0005
 ```
 
-## The Team
+### Reference performance for OGB:
 
-PGL is developed and maintained by NLP and Paddle Teams at Baidu
-
-E-mail: nlp-gnn[at]baidu.com
-
-## License
-
-PGL uses Apache License 2.0.
-
+| Model              |Test Accuracy    |Valid Accuracy   | Parameters    | Hardware |
+| ------------------ |--------------   | --------------- | -------------- |----------|
+| Arxiv_baseline     | 0.7225  ± 0.0015 | 0.7367  ± 0.0012 | 468,369  | Tesla V100 (32GB) |
+| Arxiv_UniMP        | 0.7311  ± 0.0021 | 0.7450  ± 0.0005 | 473,489 | Tesla V100 (32GB) |
+| Arxiv_UniMP_large        | 0.7379  ± 0.0014 | 0.7475  ± 0.0008 | 1,162,515 | Tesla V100 (32GB) |
+| Products_baseline  | 0.8023  ± 0.0026 | 0.9286  ± 0.0017 | 1,470,905  | Tesla V100 (32GB) |
+| Products_UniMP     | 0.8256  ± 0.0031 | 0.9308  ± 0.0017 | 1,475,605  | Tesla V100 (32GB) |
+| Proteins_baseline  | 0.8611  ± 0.0017 | 0.9128  ± 0.0007 | 1,879,664  | Tesla V100 (32GB) |
+| Proteins_UniMP     | 0.8642  ± 0.0008 | 0.9175  ± 0.0007 | 1,909,104  | Tesla V100 (32GB) |
+   
 ## Citing OGB
 If you use OGB datasets in your work, please cite our paper (Bibtex below).
 ```
