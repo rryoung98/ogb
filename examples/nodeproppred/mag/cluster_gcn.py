@@ -15,21 +15,21 @@ from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 
 from logger import Logger
 
-parser = argparse.ArgumentParser(description='OGBN-MAG (Cluster-GCN)')
-parser.add_argument('--device', type=int, default=0)
-parser.add_argument('--num_layers', type=int, default=2)
-parser.add_argument('--hidden_channels', type=int, default=64)
-parser.add_argument('--dropout', type=float, default=0.5)
-parser.add_argument('--lr', type=float, default=0.005)
-parser.add_argument('--epochs', type=int, default=30)
-parser.add_argument('--runs', type=int, default=10)
+parser = argparse.ArgumentParser(description="OGBN-MAG (Cluster-GCN)")
+parser.add_argument("--device", type=int, default=0)
+parser.add_argument("--num_layers", type=int, default=2)
+parser.add_argument("--hidden_channels", type=int, default=64)
+parser.add_argument("--dropout", type=float, default=0.5)
+parser.add_argument("--lr", type=float, default=0.005)
+parser.add_argument("--epochs", type=int, default=30)
+parser.add_argument("--runs", type=int, default=10)
 args = parser.parse_args()
 print(args)
 
-dataset = PygNodePropPredDataset(name='ogbn-mag')
+dataset = PygNodePropPredDataset(name="ogbn-mag")
 data = dataset[0]
 split_idx = dataset.get_idx_split()
-evaluator = Evaluator(name='ogbn-mag')
+evaluator = Evaluator(name="ogbn-mag")
 logger = Logger(args.runs, args)
 
 # We do not consider those attributes for now.
@@ -41,18 +41,18 @@ print(data)
 edge_index_dict = data.edge_index_dict
 
 # We need to add reverse edges to the heterogeneous graph.
-r, c = edge_index_dict[('author', 'affiliated_with', 'institution')]
-edge_index_dict[('institution', 'to', 'author')] = torch.stack([c, r])
+r, c = edge_index_dict[("author", "affiliated_with", "institution")]
+edge_index_dict[("institution", "to", "author")] = torch.stack([c, r])
 
-r, c = edge_index_dict[('author', 'writes', 'paper')]
-edge_index_dict[('paper', 'to', 'author')] = torch.stack([c, r])
+r, c = edge_index_dict[("author", "writes", "paper")]
+edge_index_dict[("paper", "to", "author")] = torch.stack([c, r])
 
-r, c = edge_index_dict[('paper', 'has_topic', 'field_of_study')]
-edge_index_dict[('field_of_study', 'to', 'paper')] = torch.stack([c, r])
+r, c = edge_index_dict[("paper", "has_topic", "field_of_study")]
+edge_index_dict[("field_of_study", "to", "paper")] = torch.stack([c, r])
 
 # Convert to undirected paper <-> paper relation.
-edge_index = to_undirected(edge_index_dict[('paper', 'cites', 'paper')])
-edge_index_dict[('paper', 'cites', 'paper')] = edge_index
+edge_index = to_undirected(edge_index_dict[("paper", "cites", "paper")])
+edge_index_dict[("paper", "cites", "paper")] = edge_index
 
 # We convert the individual graphs into a single big one, so that sampling
 # neighbors does not need to care about different edge types.
@@ -67,22 +67,26 @@ edge_index_dict[('paper', 'cites', 'paper')] = edge_index
 out = group_hetero_graph(data.edge_index_dict, data.num_nodes_dict)
 edge_index, edge_type, node_type, local_node_idx, local2global, key2int = out
 
-homo_data = Data(edge_index=edge_index, edge_attr=edge_type,
-                 node_type=node_type, local_node_idx=local_node_idx,
-                 num_nodes=node_type.size(0))
+homo_data = Data(
+    edge_index=edge_index,
+    edge_attr=edge_type,
+    node_type=node_type,
+    local_node_idx=local_node_idx,
+    num_nodes=node_type.size(0),
+)
 
 homo_data.y = node_type.new_full((node_type.size(0), 1), -1)
-homo_data.y[local2global['paper']] = data.y_dict['paper']
+homo_data.y[local2global["paper"]] = data.y_dict["paper"]
 
 homo_data.train_mask = torch.zeros((node_type.size(0)), dtype=torch.bool)
-homo_data.train_mask[local2global['paper'][split_idx['train']['paper']]] = True
+homo_data.train_mask[local2global["paper"][split_idx["train"]["paper"]]] = True
 
 print(homo_data)
 
-cluster_data = ClusterData(homo_data, num_parts=5000, recursive=True,
-                           save_dir=dataset.processed_dir)
-train_loader = ClusterLoader(cluster_data, batch_size=500, shuffle=True,
-                             num_workers=12)
+cluster_data = ClusterData(
+    homo_data, num_parts=5000, recursive=True, save_dir=dataset.processed_dir
+)
+train_loader = ClusterLoader(cluster_data, batch_size=500, shuffle=True, num_workers=12)
 
 # Map informations to their canonical type.
 x_dict = {}
@@ -95,24 +99,27 @@ for key, N in data.num_nodes_dict.items():
 
 
 class RGCNConv(MessagePassing):
-    def __init__(self, in_channels, out_channels, num_node_types,
-                 num_edge_types):
-        super(RGCNConv, self).__init__(aggr='mean')
+    def __init__(self, in_channels, out_channels, num_node_types, num_edge_types):
+        super(RGCNConv, self).__init__(aggr="mean")
 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_node_types = num_node_types
         self.num_edge_types = num_edge_types
 
-        self.rel_lins = ModuleList([
-            Linear(in_channels, out_channels, bias=False)
-            for _ in range(num_edge_types)
-        ])
+        self.rel_lins = ModuleList(
+            [
+                Linear(in_channels, out_channels, bias=False)
+                for _ in range(num_edge_types)
+            ]
+        )
 
-        self.root_lins = ModuleList([
-            Linear(in_channels, out_channels, bias=True)
-            for _ in range(num_node_types)
-        ])
+        self.root_lins = ModuleList(
+            [
+                Linear(in_channels, out_channels, bias=True)
+                for _ in range(num_node_types)
+            ]
+        )
 
         self.reset_parameters()
 
@@ -140,8 +147,17 @@ class RGCNConv(MessagePassing):
 
 
 class RGCN(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout, num_nodes_dict, x_types, num_edge_types):
+    def __init__(
+        self,
+        in_channels,
+        hidden_channels,
+        out_channels,
+        num_layers,
+        dropout,
+        num_nodes_dict,
+        x_types,
+        num_edge_types,
+    ):
         super(RGCN, self).__init__()
 
         self.in_channels = in_channels
@@ -157,10 +173,12 @@ class RGCN(torch.nn.Module):
         self.num_edge_types = num_edge_types
 
         # Create embeddings for all node types that do not come with features.
-        self.emb_dict = ParameterDict({
-            f'{key}': Parameter(torch.Tensor(num_nodes_dict[key], in_channels))
-            for key in set(node_types).difference(set(x_types))
-        })
+        self.emb_dict = ParameterDict(
+            {
+                f"{key}": Parameter(torch.Tensor(num_nodes_dict[key], in_channels))
+                for key in set(node_types).difference(set(x_types))
+            }
+        )
 
         I, H, O = in_channels, hidden_channels, out_channels  # noqa
 
@@ -181,8 +199,7 @@ class RGCN(torch.nn.Module):
 
     def group_input(self, x_dict, node_type, local_node_idx):
         # Create global node feature matrix.
-        h = torch.zeros((node_type.size(0), self.in_channels),
-                        device=node_type.device)
+        h = torch.zeros((node_type.size(0), self.in_channels), device=node_type.device)
 
         for key, x in x_dict.items():
             mask = node_type == key
@@ -194,8 +211,7 @@ class RGCN(torch.nn.Module):
 
         return h
 
-    def forward(self, x_dict, edge_index, edge_type, node_type,
-                local_node_idx):
+    def forward(self, x_dict, edge_index, edge_type, node_type, local_node_idx):
 
         x = self.group_input(x_dict, node_type, local_node_idx)
 
@@ -229,7 +245,7 @@ class RGCN(torch.nn.Module):
             for keys, adj_t in adj_t_dict.items():
                 src_key, target_key = keys[0], keys[-1]
                 out = out_dict[key2int[target_key]]
-                tmp = adj_t.matmul(x_dict[key2int[src_key]], reduce='mean')
+                tmp = adj_t.matmul(x_dict[key2int[src_key]], reduce="mean")
                 out.add_(conv.rel_lins[key2int[keys]](tmp))
 
             if i != self.num_layers - 1:
@@ -241,11 +257,18 @@ class RGCN(torch.nn.Module):
         return x_dict
 
 
-device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
+device = f"cuda:{args.device}" if torch.cuda.is_available() else "cpu"
 
-model = RGCN(128, args.hidden_channels, dataset.num_classes, args.num_layers,
-             args.dropout, num_nodes_dict, list(x_dict.keys()),
-             len(edge_index_dict.keys())).to(device)
+model = RGCN(
+    128,
+    args.hidden_channels,
+    dataset.num_classes,
+    args.num_layers,
+    args.dropout,
+    num_nodes_dict,
+    list(x_dict.keys()),
+    len(edge_index_dict.keys()),
+).to(device)
 
 x_dict = {k: v.to(device) for k, v in x_dict.items()}
 
@@ -254,14 +277,15 @@ def train(epoch):
     model.train()
 
     pbar = tqdm(total=node_type.size(0))
-    pbar.set_description(f'Epoch {epoch:02d}')
+    pbar.set_description(f"Epoch {epoch:02d}")
 
     total_loss = total_examples = 0
     for data in train_loader:
         data = data.to(device)
         optimizer.zero_grad()
-        out = model(x_dict, data.edge_index, data.edge_attr, data.node_type,
-                    data.local_node_idx)
+        out = model(
+            x_dict, data.edge_index, data.edge_attr, data.node_type, data.local_node_idx
+        )
         out = out[data.train_mask]
         y = data.y[data.train_mask].squeeze()
         loss = F.nll_loss(out, y)
@@ -283,23 +307,29 @@ def test():
     model.eval()
 
     out = model.inference(x_dict, edge_index_dict, key2int)
-    out = out[key2int['paper']]
+    out = out[key2int["paper"]]
 
     y_pred = out.argmax(dim=-1, keepdim=True).cpu()
-    y_true = data.y_dict['paper']
+    y_true = data.y_dict["paper"]
 
-    train_acc = evaluator.eval({
-        'y_true': y_true[split_idx['train']['paper']],
-        'y_pred': y_pred[split_idx['train']['paper']],
-    })['acc']
-    valid_acc = evaluator.eval({
-        'y_true': y_true[split_idx['valid']['paper']],
-        'y_pred': y_pred[split_idx['valid']['paper']],
-    })['acc']
-    test_acc = evaluator.eval({
-        'y_true': y_true[split_idx['test']['paper']],
-        'y_pred': y_pred[split_idx['test']['paper']],
-    })['acc']
+    train_acc = evaluator.eval(
+        {
+            "y_true": y_true[split_idx["train"]["paper"]],
+            "y_pred": y_pred[split_idx["train"]["paper"]],
+        }
+    )["acc"]
+    valid_acc = evaluator.eval(
+        {
+            "y_true": y_true[split_idx["valid"]["paper"]],
+            "y_pred": y_pred[split_idx["valid"]["paper"]],
+        }
+    )["acc"]
+    test_acc = evaluator.eval(
+        {
+            "y_true": y_true[split_idx["test"]["paper"]],
+            "y_pred": y_pred[split_idx["test"]["paper"]],
+        }
+    )["acc"]
 
     return train_acc, valid_acc, test_acc
 
@@ -314,11 +344,13 @@ for run in range(args.runs):
         result = test()
         logger.add_result(run, result)
         train_acc, valid_acc, test_acc = result
-        print(f'Run: {run + 1:02d}, '
-              f'Epoch: {epoch:02d}, '
-              f'Loss: {loss:.4f}, '
-              f'Train: {100 * train_acc:.2f}%, '
-              f'Valid: {100 * valid_acc:.2f}%, '
-              f'Test: {100 * test_acc:.2f}%')
+        print(
+            f"Run: {run + 1:02d}, "
+            f"Epoch: {epoch:02d}, "
+            f"Loss: {loss:.4f}, "
+            f"Train: {100 * train_acc:.2f}%, "
+            f"Valid: {100 * valid_acc:.2f}%, "
+            f"Test: {100 * test_acc:.2f}%"
+        )
     logger.print_statistics(run)
 logger.print_statistics()

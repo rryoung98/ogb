@@ -2,6 +2,7 @@ class BaseLoss(object):
     def __call__(self, score, label):
         pass
 
+
 class BaseLogisticLoss(BaseLoss):
     """ Logistic Loss
     \log(1 + \exp(-l_i \cdot f(t_i)))
@@ -9,11 +10,13 @@ class BaseLogisticLoss(BaseLoss):
     f : score function
     t_i : triple i
     """
+
     def __init__(self):
         super(BaseLogisticLoss, self).__init__()
 
     def __call__(self, score, label):
         pass
+
 
 class BaseBCELoss(BaseLoss):
     """ Binary Cross Entropy Loss
@@ -23,11 +26,13 @@ class BaseBCELoss(BaseLoss):
     \sigma : logistic sigmoid function
     t_i : triple i
     """
+
     def __init__(self):
         super(BaseBCELoss, self).__init__()
 
     def __call__(self, score, label):
         pass
+
 
 class BaseHingeLoss(BaseLoss):
     """ Hinge Loss
@@ -37,12 +42,14 @@ class BaseHingeLoss(BaseLoss):
     f : score function
     t_i : triple i
     """
+
     def __init__(self, margin):
         super(BaseHingeLoss, self).__init__()
         self.margin = margin
 
     def __call__(self, score, label):
         pass
+
 
 class BaseLogsigmoidLoss(BaseLoss):
     """ Logsigmoid Loss
@@ -51,6 +58,7 @@ class BaseLogsigmoidLoss(BaseLoss):
     f : score
     t_i : triple i
     """
+
     def __init__(self):
         super(BaseLogsigmoidLoss, self).__init__()
 
@@ -62,6 +70,7 @@ class BaseLossGenerator(object):
     """ loss generator class is responsible for calculate loss for positive & negative loss / pairwise loss.
     It has different implementations of concrete method in regards of PyTorch and MXNet.
     """
+
     def __init__(self, neg_adversarial_sampling, adversarial_temperature, pairwise):
         """ initialize BaseLossGenerator class
 
@@ -81,7 +90,7 @@ class BaseLossGenerator(object):
         else:
             self.adversarial_temperature = 0
         if self.pairwise is True and self.neg_adversarial_sampling is True:
-            raise ValueError('loss cannot be pairwise and adversarial sampled')
+            raise ValueError("loss cannot be pairwise and adversarial sampled")
 
     def get_pos_loss(self, pos_score, edge_weight):
         """ Predict loss for positive labels

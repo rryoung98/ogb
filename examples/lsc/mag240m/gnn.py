@@ -15,8 +15,12 @@ from torch.optim.lr_scheduler import StepLR
 
 from pytorch_lightning.metrics import Accuracy
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning import (LightningDataModule, LightningModule, Trainer,
-                               seed_everything)
+from pytorch_lightning import (
+    LightningDataModule,
+    LightningModule,
+    Trainer,
+    seed_everything,
+)
 
 from torch_sparse import SparseTensor
 from torch_geometric.nn import SAGEConv, GATConv
@@ -56,63 +60,85 @@ class MAG240M(LightningDataModule):
 
     def prepare_data(self):
         dataset = MAG240MDataset(self.data_dir)
-        path = f'{dataset.dir}/paper_to_paper_symmetric.pt'
+        path = f"{dataset.dir}/paper_to_paper_symmetric.pt"
         if not osp.exists(path):
             t = time.perf_counter()
-            print('Converting adjacency matrix...', end=' ', flush=True)
-            edge_index = dataset.edge_index('paper', 'cites', 'paper')
+            print("Converting adjacency matrix...", end=" ", flush=True)
+            edge_index = dataset.edge_index("paper", "cites", "paper")
             edge_index = torch.from_numpy(edge_index)
             adj_t = SparseTensor(
-                row=edge_index[0], col=edge_index[1],
+                row=edge_index[0],
+                col=edge_index[1],
                 sparse_sizes=(dataset.num_papers, dataset.num_papers),
-                is_sorted=True)
+                is_sorted=True,
+            )
             torch.save(adj_t.to_symmetric(), path)
-            print(f'Done! [{time.perf_counter() - t:.2f}s]')
+            print(f"Done! [{time.perf_counter() - t:.2f}s]")
 
     def setup(self, stage: Optional[str] = None):
         t = time.perf_counter()
-        print('Reading dataset...', end=' ', flush=True)
+        print("Reading dataset...", end=" ", flush=True)
         dataset = MAG240MDataset(self.data_dir)
 
-        self.train_idx = torch.from_numpy(dataset.get_idx_split('train'))
+        self.train_idx = torch.from_numpy(dataset.get_idx_split("train"))
         self.train_idx = self.train_idx
         self.train_idx.share_memory_()
-        self.val_idx = torch.from_numpy(dataset.get_idx_split('valid'))
+        self.val_idx = torch.from_numpy(dataset.get_idx_split("valid"))
         self.val_idx.share_memory_()
-        self.test_idx = torch.from_numpy(dataset.get_idx_split('test'))
+        self.test_idx = torch.from_numpy(dataset.get_idx_split("test"))
         self.test_idx.share_memory_()
 
         self.x = dataset.paper_feat
         self.y = torch.from_numpy(dataset.all_paper_label)
 
-        path = f'{dataset.dir}/paper_to_paper_symmetric.pt'
+        path = f"{dataset.dir}/paper_to_paper_symmetric.pt"
         self.adj_t = torch.load(path)
-        print(f'Done! [{time.perf_counter() - t:.2f}s]')
+        print(f"Done! [{time.perf_counter() - t:.2f}s]")
 
     def train_dataloader(self):
-        return NeighborSampler(self.adj_t, node_idx=self.train_idx,
-                               sizes=self.sizes, return_e_id=False,
-                               transform=self.convert_batch,
-                               batch_size=self.batch_size, shuffle=True,
-                               num_workers=4)
+        return NeighborSampler(
+            self.adj_t,
+            node_idx=self.train_idx,
+            sizes=self.sizes,
+            return_e_id=False,
+            transform=self.convert_batch,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=4,
+        )
 
     def val_dataloader(self):
-        return NeighborSampler(self.adj_t, node_idx=self.val_idx,
-                               sizes=self.sizes, return_e_id=False,
-                               transform=self.convert_batch,
-                               batch_size=self.batch_size, num_workers=2)
+        return NeighborSampler(
+            self.adj_t,
+            node_idx=self.val_idx,
+            sizes=self.sizes,
+            return_e_id=False,
+            transform=self.convert_batch,
+            batch_size=self.batch_size,
+            num_workers=2,
+        )
 
     def test_dataloader(self):  # Test best validation model once again.
-        return NeighborSampler(self.adj_t, node_idx=self.val_idx,
-                               sizes=self.sizes, return_e_id=False,
-                               transform=self.convert_batch,
-                               batch_size=self.batch_size, num_workers=2)
+        return NeighborSampler(
+            self.adj_t,
+            node_idx=self.val_idx,
+            sizes=self.sizes,
+            return_e_id=False,
+            transform=self.convert_batch,
+            batch_size=self.batch_size,
+            num_workers=2,
+        )
 
     def hidden_test_dataloader(self):
-        return NeighborSampler(self.adj_t, node_idx=self.test_idx,
-                               sizes=self.sizes, return_e_id=False,
-                               transform=self.convert_batch,
-                               batch_size=self.batch_size, num_workers=3)
+        return NeighborSampler(
+            self.adj_t,
+            node_idx=self.test_idx,
+            sizes=self.sizes,
+            return_e_id=False,
+            transform=self.convert_batch,
+            batch_size=self.batch_size,
+            num_workers=3,
+        )
 
     def convert_batch(self, batch_size, n_id, adjs):
         x = torch.from_numpy(self.x[n_id.numpy()]).to(torch.float)
@@ -121,9 +147,16 @@ class MAG240M(LightningDataModule):
 
 
 class GNN(LightningModule):
-    def __init__(self, model: str, in_channels: int, out_channels: int,
-                 hidden_channels: int, num_layers: int, heads: int = 4,
-                 dropout: float = 0.5):
+    def __init__(
+        self,
+        model: str,
+        in_channels: int,
+        out_channels: int,
+        hidden_channels: int,
+        num_layers: int,
+        heads: int = 4,
+        dropout: float = 0.5,
+    ):
         super().__init__()
         self.save_hyperparameters()
         self.model = model.lower()
@@ -133,16 +166,16 @@ class GNN(LightningModule):
         self.norms = ModuleList()
         self.skips = ModuleList()
 
-        if self.model == 'gat':
-            self.convs.append(
-                GATConv(in_channels, hidden_channels // heads, heads))
+        if self.model == "gat":
+            self.convs.append(GATConv(in_channels, hidden_channels // heads, heads))
             self.skips.append(Linear(in_channels, hidden_channels))
             for _ in range(num_layers - 1):
                 self.convs.append(
-                    GATConv(hidden_channels, hidden_channels // heads, heads))
+                    GATConv(hidden_channels, hidden_channels // heads, heads)
+                )
                 self.skips.append(Linear(hidden_channels, hidden_channels))
 
-        elif self.model == 'graphsage':
+        elif self.model == "graphsage":
             self.convs.append(SAGEConv(in_channels, hidden_channels))
             for _ in range(num_layers - 1):
                 self.convs.append(SAGEConv(hidden_channels, hidden_channels))
@@ -162,12 +195,12 @@ class GNN(LightningModule):
 
     def forward(self, x: Tensor, adjs_t: List[SparseTensor]) -> Tensor:
         for i, adj_t in enumerate(adjs_t):
-            x_target = x[:adj_t.size(0)]
+            x_target = x[: adj_t.size(0)]
             x = self.convs[i]((x, x_target), adj_t)
-            if self.model == 'gat':
+            if self.model == "gat":
                 x = x + self.skips[i](x_target)
                 x = F.elu(self.norms[i](x))
-            elif self.model == 'graphsage':
+            elif self.model == "graphsage":
                 x = F.relu(self.norms[i](x))
             x = F.dropout(x, p=self.dropout, training=self.training)
 
@@ -177,22 +210,33 @@ class GNN(LightningModule):
         y_hat = self(batch.x, batch.adjs_t)
         train_loss = F.cross_entropy(y_hat, batch.y)
         train_acc = self.acc(y_hat.softmax(dim=-1), batch.y)
-        self.log('train_acc', train_acc, prog_bar=True, on_step=False,
-                 on_epoch=True)
+        self.log("train_acc", train_acc, prog_bar=True, on_step=False, on_epoch=True)
         return train_loss
 
     def validation_step(self, batch, batch_idx: int):
         y_hat = self(batch.x, batch.adjs_t)
         val_acc = self.acc(y_hat.softmax(dim=-1), batch.y)
-        self.log('val_acc', val_acc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True)
+        self.log(
+            "val_acc",
+            val_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
         return val_acc
 
     def test_step(self, batch, batch_idx: int):
         y_hat = self(batch.x, batch.adjs_t)
         test_acc = self.acc(y_hat.softmax(dim=-1), batch.y)
-        self.log('test_acc', test_acc, on_step=False, on_epoch=True,
-                 prog_bar=True, sync_dist=True)
+        self.log(
+            "test_acc",
+            test_acc,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            sync_dist=True,
+        )
         return test_acc
 
     def configure_optimizers(self):
@@ -201,45 +245,55 @@ class GNN(LightningModule):
         return [optimizer], [scheduler]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hidden_channels', type=int, default=1024)
-    parser.add_argument('--batch_size', type=int, default=1024)
-    parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--model', type=str, default='gat',
-                        choices=['gat', 'graphsage'])
-    parser.add_argument('--sizes', type=str, default='25-15')
-    parser.add_argument('--device', type=str, default='0')
-    parser.add_argument('--evaluate', action='store_true')
+    parser.add_argument("--hidden_channels", type=int, default=1024)
+    parser.add_argument("--batch_size", type=int, default=1024)
+    parser.add_argument("--dropout", type=float, default=0.5)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument(
+        "--model", type=str, default="gat", choices=["gat", "graphsage"]
+    )
+    parser.add_argument("--sizes", type=str, default="25-15")
+    parser.add_argument("--device", type=str, default="0")
+    parser.add_argument("--evaluate", action="store_true")
     args = parser.parse_args()
-    args.sizes = [int(i) for i in args.sizes.split('-')]
+    args.sizes = [int(i) for i in args.sizes.split("-")]
     print(args)
 
     seed_everything(42)
     datamodule = MAG240M(ROOT, args.batch_size, args.sizes)
 
     if not args.evaluate:
-        model = GNN(args.model, datamodule.num_features,
-                    datamodule.num_classes, args.hidden_channels,
-                    num_layers=len(args.sizes), dropout=args.dropout)
-        print(f'#Params {sum([p.numel() for p in model.parameters()])}')
-        checkpoint_callback = ModelCheckpoint(monitor='val_acc', save_top_k=1)
-        trainer = Trainer(gpus=args.device, max_epochs=args.epochs,
-                          callbacks=[checkpoint_callback],
-                          default_root_dir=f'logs/{args.model}')
+        model = GNN(
+            args.model,
+            datamodule.num_features,
+            datamodule.num_classes,
+            args.hidden_channels,
+            num_layers=len(args.sizes),
+            dropout=args.dropout,
+        )
+        print(f"#Params {sum([p.numel() for p in model.parameters()])}")
+        checkpoint_callback = ModelCheckpoint(monitor="val_acc", save_top_k=1)
+        trainer = Trainer(
+            gpus=args.device,
+            max_epochs=args.epochs,
+            callbacks=[checkpoint_callback],
+            default_root_dir=f"logs/{args.model}",
+        )
         trainer.fit(model, datamodule=datamodule)
 
     if args.evaluate:
-        dirs = glob.glob(f'logs/{args.model}/lightning_logs/*')
-        version = max([int(x.split(os.sep)[-1].split('_')[-1]) for x in dirs])
-        logdir = f'logs/{args.model}/lightning_logs/version_{version}'
-        print(f'Evaluating saved model in {logdir}...')
-        ckpt = glob.glob(f'{logdir}/checkpoints/*')[0]
+        dirs = glob.glob(f"logs/{args.model}/lightning_logs/*")
+        version = max([int(x.split(os.sep)[-1].split("_")[-1]) for x in dirs])
+        logdir = f"logs/{args.model}/lightning_logs/version_{version}"
+        print(f"Evaluating saved model in {logdir}...")
+        ckpt = glob.glob(f"{logdir}/checkpoints/*")[0]
 
         trainer = Trainer(gpus=args.device, resume_from_checkpoint=ckpt)
-        model = GNN.load_from_checkpoint(checkpoint_path=ckpt,
-                                         hparams_file=f'{logdir}/hparams.yaml')
+        model = GNN.load_from_checkpoint(
+            checkpoint_path=ckpt, hparams_file=f"{logdir}/hparams.yaml"
+        )
 
         datamodule.batch_size = 16
         datamodule.sizes = [160] * len(args.sizes)  # (Almost) no sampling...
@@ -256,5 +310,5 @@ if __name__ == '__main__':
             with torch.no_grad():
                 out = model(batch.x, batch.adjs_t).argmax(dim=-1).cpu()
                 y_preds.append(out)
-        res = {'y_pred': torch.cat(y_preds, dim=0)}
-        evaluator.save_test_submission(res, f'results/{args.model}')
+        res = {"y_pred": torch.cat(y_preds, dim=0)}
+        evaluator.save_test_submission(res, f"results/{args.model}")

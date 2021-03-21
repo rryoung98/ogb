@@ -38,37 +38,47 @@ from .. import *
 
 logsigmoid = functional.logsigmoid
 
+
 def abs(val):
     return th.abs(val)
+
 
 def masked_select(input, mask):
     return th.masked_select(input, mask)
 
+
 def get_dev(gpu):
-    return th.device('cpu') if gpu < 0 else th.device('cuda:' + str(gpu))
+    return th.device("cpu") if gpu < 0 else th.device("cuda:" + str(gpu))
+
 
 def get_device(args):
-    return th.device('cpu') if args.gpu[0] < 0 else th.device('cuda:' + str(args.gpu[0]))
+    return (
+        th.device("cpu") if args.gpu[0] < 0 else th.device("cuda:" + str(args.gpu[0]))
+    )
 
-none = lambda x : x
-norm = lambda x, p: x.norm(p=p)**p
+
+none = lambda x: x
+norm = lambda x, p: x.norm(p=p) ** p
 get_scalar = lambda x: x.detach().item()
 reshape = lambda arr, x, y: arr.view(x, y)
 cuda = lambda arr, gpu: arr.cuda(gpu)
+
 
 def l2_dist(x, y, pw=False):
     if pw is False:
         x = x.unsqueeze(1)
         y = y.unsqueeze(0)
 
-    return -th.norm(x-y, p=2, dim=-1)
+    return -th.norm(x - y, p=2, dim=-1)
+
 
 def l1_dist(x, y, pw=False):
     if pw is False:
         x = x.unsqueeze(1)
         y = y.unsqueeze(0)
 
-    return -th.norm(x-y, p=1, dim=-1)
+    return -th.norm(x - y, p=1, dim=-1)
+
 
 def dot_dist(x, y, pw=False):
     if pw is False:
@@ -76,6 +86,7 @@ def dot_dist(x, y, pw=False):
         y = y.unsqueeze(0)
 
     return th.sum(x * y, dim=-1)
+
 
 def cosine_dist(x, y, pw=False):
     score = dot_dist(x, y, pw)
@@ -88,19 +99,22 @@ def cosine_dist(x, y, pw=False):
 
     return score / (x * y)
 
+
 def extended_jaccard_dist(x, y, pw=False):
     score = dot_dist(x, y, pw)
 
-    x = x.norm(p=2, dim=-1)**2
-    y = y.norm(p=2, dim=-1)**2
+    x = x.norm(p=2, dim=-1) ** 2
+    y = y.norm(p=2, dim=-1) ** 2
     if pw is False:
         x = x.unsqueeze(1)
         y = y.unsqueeze(0)
 
     return score / (x + y - score)
 
+
 def floor_divide(input, other):
     return th.floor_divide(input, other)
+
 
 def thread_wrapped_func(func):
     """Wrapped func for torch.multiprocessing.Process.
@@ -112,9 +126,11 @@ def thread_wrapped_func(func):
     @thread_wrapped_func
     def func_to_wrap(args ...):
     """
+
     @wraps(func)
     def decorated_function(*args, **kwargs):
         queue = Queue()
+
         def _queue_result():
             exception, trace, res = None, None, None
             try:
@@ -131,7 +147,9 @@ def thread_wrapped_func(func):
         else:
             assert isinstance(exception, Exception)
             raise exception.__class__(trace)
+
     return decorated_function
+
 
 @thread_wrapped_func
 def async_update(args, emb, queue):
@@ -169,10 +187,11 @@ def async_update(args, emb, queue):
             if gpu_id >= 0:
                 std = std.cuda(gpu_id)
             std_values = std.sqrt_().add_(1e-10).unsqueeze(1)
-            tmp = (-clr * grad_values / std_values)
+            tmp = -clr * grad_values / std_values
             if tmp.device != device:
                 tmp = tmp.to(device)
             emb.emb.index_add_(0, grad_indices, tmp)
+
 
 class InferEmbedding:
     def __init__(self, device):
@@ -188,7 +207,7 @@ class InferEmbedding:
         name : str
             Embedding name.
         """
-        file_name = os.path.join(path, name+'.npy')
+        file_name = os.path.join(path, name + ".npy")
         self.emb = th.Tensor(np.load(file_name))
 
     def load_emb(self, emb_array):
@@ -207,6 +226,7 @@ class InferEmbedding:
     def __call__(self, idx):
         return self.emb[idx].to(self.device)
 
+
 class ExternalEmbedding:
     """Sparse Embedding for Knowledge Graph
     It is used to store both entity embeddings and relation embeddings.
@@ -222,6 +242,7 @@ class ExternalEmbedding:
     device : th.device
         Device to store the embedding.
     """
+
     def __init__(self, args, num, dim, device, is_feat=False):
         self.gpu = args.gpu
         self.args = args
@@ -328,7 +349,7 @@ class ExternalEmbedding:
                 grad = data.grad.data
 
                 clr = self.args.lr
-                #clr = self.args.lr / (1 + (self.state_step - 1) * group['lr_decay'])
+                # clr = self.args.lr / (1 + (self.state_step - 1) * group['lr_decay'])
 
                 # the update is non-linear so indices must be unique
                 grad_indices = idx
@@ -357,7 +378,7 @@ class ExternalEmbedding:
                             if gpu_id >= 0:
                                 std = std.cuda(gpu_id)
                             std_values = std.sqrt_().add_(1e-10).unsqueeze(1)
-                            tmp = (-clr * cpu_grad / std_values)
+                            tmp = -clr * cpu_grad / std_values
                             tmp = tmp.cpu()
                             self.global_emb.emb.index_add_(0, cpu_idx, tmp)
                     self.state_sum.index_add_(0, grad_indices, grad_sum)
@@ -365,7 +386,7 @@ class ExternalEmbedding:
                     if gpu_id >= 0:
                         std = std.cuda(gpu_id)
                     std_values = std.sqrt_().add_(1e-10).unsqueeze(1)
-                    tmp = (-clr * grad_values / std_values)
+                    tmp = -clr * grad_values / std_values
                     if tmp.device != device:
                         tmp = tmp.to(device)
                     # TODO(zhengda) the overhead is here.
@@ -376,7 +397,9 @@ class ExternalEmbedding:
         """Set up the async update subprocess.
         """
         self.async_q = Queue(1)
-        self.async_p = mp.Process(target=async_update, args=(self.args, self, self.async_q))
+        self.async_p = mp.Process(
+            target=async_update, args=(self.args, self, self.async_q)
+        )
         self.async_p.start()
 
     def finish_async_update(self):
@@ -401,7 +424,7 @@ class ExternalEmbedding:
         name : str
             Embedding name.
         """
-        file_name = os.path.join(path, name+'.npy')
+        file_name = os.path.join(path, name + ".npy")
         np.save(file_name, self.emb.cpu().detach().numpy())
 
     def load(self, path, name):
@@ -414,5 +437,5 @@ class ExternalEmbedding:
         name : str
             Embedding name.
         """
-        file_name = os.path.join(path, name+'.npy')
+        file_name = os.path.join(path, name + ".npy")
         self.emb = th.Tensor(np.load(file_name))

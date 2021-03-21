@@ -19,11 +19,11 @@ class Logger(object):
         if run is not None:
             result = torch.tensor(self.results[run])
             argmax = result[:, 1].argmax().item()
-            print(f'Run {run + 1:02d}:')
-            print(f'Highest Train: {result[:, 0].max():.4f}')
-            print(f'Highest Valid: {result[:, 1].max():.4f}')
-            print(f'  Final Train: {result[argmax, 0]:.4f}')
-            print(f'   Final Test: {result[argmax, 2]:.4f}')
+            print(f"Run {run + 1:02d}:")
+            print(f"Highest Train: {result[:, 0].max():.4f}")
+            print(f"Highest Valid: {result[:, 1].max():.4f}")
+            print(f"  Final Train: {result[argmax, 0]:.4f}")
+            print(f"   Final Test: {result[argmax, 2]:.4f}")
         else:
             result = torch.tensor(self.results)
 
@@ -38,12 +38,12 @@ class Logger(object):
             best_result = torch.tensor(best_results)
             print(best_result)
 
-            print(f'All runs:')
+            print(f"All runs:")
             r = best_result[:, 0]
-            print(f'Highest Train: {r.mean():.4f} ± {r.std():.4f}')
+            print(f"Highest Train: {r.mean():.4f} ± {r.std():.4f}")
             r = best_result[:, 1]
-            print(f'Highest Valid: {r.mean():.4f} ± {r.std():.4f}')
+            print(f"Highest Valid: {r.mean():.4f} ± {r.std():.4f}")
             r = best_result[:, 2]
-            print(f'  Final Train: {r.mean():.4f} ± {r.std():.4f}')
+            print(f"  Final Train: {r.mean():.4f} ± {r.std():.4f}")
             r = best_result[:, 3]
-            print(f'   Final Test: {r.mean():.4f} ± {r.std():.4f}')
+            print(f"   Final Test: {r.mean():.4f} ± {r.std():.4f}")

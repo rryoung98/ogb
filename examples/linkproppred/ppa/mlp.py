@@ -10,8 +10,7 @@ from logger import Logger
 
 
 class LinkPredictor(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers, dropout):
         super(LinkPredictor, self).__init__()
 
         self.lins = torch.nn.ModuleList()
@@ -39,11 +38,10 @@ class LinkPredictor(torch.nn.Module):
 def train(predictor, x, split_edge, optimizer, batch_size):
     predictor.train()
 
-    pos_train_edge = split_edge['train']['edge'].to(x.device)
+    pos_train_edge = split_edge["train"]["edge"].to(x.device)
 
     total_loss = total_examples = 0
-    for perm in DataLoader(range(pos_train_edge.size(0)), batch_size,
-                           shuffle=True):
+    for perm in DataLoader(range(pos_train_edge.size(0)), batch_size, shuffle=True):
         optimizer.zero_grad()
 
         edge = pos_train_edge[perm].t()
@@ -52,8 +50,9 @@ def train(predictor, x, split_edge, optimizer, batch_size):
         pos_loss = -torch.log(pos_out + 1e-15).mean()
 
         # Just do some trivial random sampling.
-        edge = torch.randint(0, x.size(0), edge.size(), dtype=torch.long,
-                             device=x.device)
+        edge = torch.randint(
+            0, x.size(0), edge.size(), dtype=torch.long, device=x.device
+        )
         neg_out = predictor(x[edge[0]], x[edge[1]])
         neg_loss = -torch.log(1 - neg_out + 1e-15).mean()
 
@@ -72,11 +71,11 @@ def train(predictor, x, split_edge, optimizer, batch_size):
 def test(predictor, x, split_edge, evaluator, batch_size):
     predictor.eval()
 
-    pos_train_edge = split_edge['train']['edge'].to(x.device)
-    pos_valid_edge = split_edge['valid']['edge'].to(x.device)
-    neg_valid_edge = split_edge['valid']['edge_neg'].to(x.device)
-    pos_test_edge = split_edge['test']['edge'].to(x.device)
-    neg_test_edge = split_edge['test']['edge_neg'].to(x.device)
+    pos_train_edge = split_edge["train"]["edge"].to(x.device)
+    pos_valid_edge = split_edge["valid"]["edge"].to(x.device)
+    neg_valid_edge = split_edge["valid"]["edge_neg"].to(x.device)
+    pos_test_edge = split_edge["test"]["edge"].to(x.device)
+    neg_test_edge = split_edge["test"]["edge_neg"].to(x.device)
 
     pos_train_preds = []
     for perm in DataLoader(range(pos_train_edge.size(0)), batch_size):
@@ -111,61 +110,59 @@ def test(predictor, x, split_edge, evaluator, batch_size):
     results = {}
     for K in [10, 50, 100]:
         evaluator.K = K
-        train_hits = evaluator.eval({
-            'y_pred_pos': pos_train_pred,
-            'y_pred_neg': neg_valid_pred,
-        })[f'hits@{K}']
-        valid_hits = evaluator.eval({
-            'y_pred_pos': pos_valid_pred,
-            'y_pred_neg': neg_valid_pred,
-        })[f'hits@{K}']
-        test_hits = evaluator.eval({
-            'y_pred_pos': pos_test_pred,
-            'y_pred_neg': neg_test_pred,
-        })[f'hits@{K}']
+        train_hits = evaluator.eval(
+            {"y_pred_pos": pos_train_pred, "y_pred_neg": neg_valid_pred,}
+        )[f"hits@{K}"]
+        valid_hits = evaluator.eval(
+            {"y_pred_pos": pos_valid_pred, "y_pred_neg": neg_valid_pred,}
+        )[f"hits@{K}"]
+        test_hits = evaluator.eval(
+            {"y_pred_pos": pos_test_pred, "y_pred_neg": neg_test_pred,}
+        )[f"hits@{K}"]
 
-        results[f'Hits@{K}'] = (train_hits, valid_hits, test_hits)
+        results[f"Hits@{K}"] = (train_hits, valid_hits, test_hits)
 
     return results
 
 
 def main():
-    parser = argparse.ArgumentParser(description='OGBL-PPA (MLP)')
-    parser.add_argument('--device', type=int, default=0)
-    parser.add_argument('--log_steps', type=int, default=1)
-    parser.add_argument('--num_layers', type=int, default=3)
-    parser.add_argument('--hidden_channels', type=int, default=256)
-    parser.add_argument('--dropout', type=float, default=0.0)
-    parser.add_argument('--batch_size', type=int, default=64 * 1024)
-    parser.add_argument('--lr', type=float, default=0.01)
-    parser.add_argument('--epochs', type=int, default=20)
-    parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=10)
+    parser = argparse.ArgumentParser(description="OGBL-PPA (MLP)")
+    parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--log_steps", type=int, default=1)
+    parser.add_argument("--num_layers", type=int, default=3)
+    parser.add_argument("--hidden_channels", type=int, default=256)
+    parser.add_argument("--dropout", type=float, default=0.0)
+    parser.add_argument("--batch_size", type=int, default=64 * 1024)
+    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--eval_steps", type=int, default=1)
+    parser.add_argument("--runs", type=int, default=10)
     args = parser.parse_args()
     print(args)
 
-    device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
+    device = f"cuda:{args.device}" if torch.cuda.is_available() else "cpu"
     device = torch.device(device)
 
-    dataset = PygLinkPropPredDataset(name='ogbl-ppa')
+    dataset = PygLinkPropPredDataset(name="ogbl-ppa")
     split_edge = dataset.get_edge_split()
     data = dataset[0]
 
     x = data.x.to(torch.float)
-    embedding = torch.load('embedding.pt', map_location='cpu')
+    embedding = torch.load("embedding.pt", map_location="cpu")
     x = torch.cat([x, embedding], dim=-1)
     x = x.to(device)
 
-    predictor = LinkPredictor(x.size(-1), args.hidden_channels, 1,
-                              args.num_layers, args.dropout).to(device)
+    predictor = LinkPredictor(
+        x.size(-1), args.hidden_channels, 1, args.num_layers, args.dropout
+    ).to(device)
 
     optimizer = torch.optim.Adam(predictor.parameters(), lr=args.lr)
 
-    evaluator = Evaluator(name='ogbl-ppa')
+    evaluator = Evaluator(name="ogbl-ppa")
     loggers = {
-        'Hits@10': Logger(args.runs, args),
-        'Hits@50': Logger(args.runs, args),
-        'Hits@100': Logger(args.runs, args),
+        "Hits@10": Logger(args.runs, args),
+        "Hits@50": Logger(args.runs, args),
+        "Hits@100": Logger(args.runs, args),
     }
 
     for run in range(args.runs):
@@ -175,8 +172,7 @@ def main():
             loss = train(predictor, x, split_edge, optimizer, args.batch_size)
 
             if epoch % args.eval_steps == 0:
-                results = test(predictor, x, split_edge, evaluator,
-                               args.batch_size)
+                results = test(predictor, x, split_edge, evaluator, args.batch_size)
                 for key, result in results.items():
                     loggers[key].add_result(run, result)
 
@@ -184,12 +180,14 @@ def main():
                     for key, result in results.items():
                         train_hits, valid_hits, test_hits = result
                         print(key)
-                        print(f'Run: {run + 1:02d}, '
-                              f'Epoch: {epoch:02d}, '
-                              f'Loss: {loss:.4f}, '
-                              f'Train: {100 * train_hits:.2f}%, '
-                              f'Valid: {100 * valid_hits:.2f}%, '
-                              f'Test: {100 * test_hits:.2f}%')
+                        print(
+                            f"Run: {run + 1:02d}, "
+                            f"Epoch: {epoch:02d}, "
+                            f"Loss: {loss:.4f}, "
+                            f"Train: {100 * train_hits:.2f}%, "
+                            f"Valid: {100 * valid_hits:.2f}%, "
+                            f"Test: {100 * test_hits:.2f}%"
+                        )
 
         for key in loggers.keys():
             print(key)

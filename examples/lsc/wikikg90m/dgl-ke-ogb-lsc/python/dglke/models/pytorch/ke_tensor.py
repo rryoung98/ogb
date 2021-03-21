@@ -38,6 +38,7 @@ from .. import *
 
 from .tensor_models import thread_wrapped_func
 
+
 class KGEmbedding:
     """Sparse Embedding for Knowledge Graph
     It is used to store both entity embeddings and relation embeddings.
@@ -51,6 +52,7 @@ class KGEmbedding:
     device : th.device
         Device to store the embedding.
     """
+
     def __init__(self, device):
         self.device = device
         self.emb = None
@@ -196,7 +198,7 @@ class KGEmbedding:
                 grad = data.grad.data
 
                 clr = self.lr
-                #clr = self.lr / (1 + (self.state_step - 1) * group['lr_decay'])
+                # clr = self.lr / (1 + (self.state_step - 1) * group['lr_decay'])
 
                 # the update is non-linear so indices must be unique
                 grad_indices = idx
@@ -225,7 +227,7 @@ class KGEmbedding:
                             if gpu_id >= 0:
                                 std = std.cuda(gpu_id)
                             std_values = std.sqrt_().add_(1e-10).unsqueeze(1)
-                            tmp = (-clr * cpu_grad / std_values)
+                            tmp = -clr * cpu_grad / std_values
                             tmp = tmp.cpu()
                             self.global_emb.emb.index_add_(0, cpu_idx, tmp)
                     self.state_sum.index_add_(0, grad_indices, grad_sum)
@@ -233,7 +235,7 @@ class KGEmbedding:
                     if gpu_id >= 0:
                         std = std.cuda(gpu_id)
                     std_values = std.sqrt_().add_(1e-10).unsqueeze(1)
-                    tmp = (-clr * grad_values / std_values)
+                    tmp = -clr * grad_values / std_values
                     if tmp.device != device:
                         tmp = tmp.to(device)
                     # TODO(zhengda) the overhead is here.
@@ -245,4 +247,3 @@ class KGEmbedding:
         """
         data = [data for _, data in self.trace]
         return th.cat(data, 0)
-
