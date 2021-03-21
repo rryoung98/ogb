@@ -6,6 +6,8 @@ from torch_geometric.nn import Node2Vec
 from ogb.linkproppred import PygLinkPropPredDataset
 
 
+
+
 def save_embedding(model):
     torch.save(model.embedding.weight.data.cpu(), "embedding.pt")
 

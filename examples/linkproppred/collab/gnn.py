@@ -11,6 +11,8 @@ from torch_sparse import SparseTensor
 import torch_geometric.transforms as T
 from torch_geometric.nn import GCNConv, SAGEConv
 
+import numpy as np
+
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 
 from logger import Logger
@@ -228,9 +230,10 @@ def main():
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--eval_steps", type=int, default=1)
     parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--seed",type=int,defatul=1)
     args = parser.parse_args()
     print(args)
-
+    
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "cpu"
     device = torch.device(device)
 
@@ -241,7 +244,9 @@ def main():
     data = T.ToSparseTensor()(data)
 
     split_edge = dataset.get_edge_split()
-
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
     # Use training + validation edges for inference on test set.
     if args.use_valedges_as_input:
         val_edge_index = split_edge["valid"]["edge"].t()
