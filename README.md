@@ -4,10 +4,6 @@
 
 --------------------------------------------------------------------------------
 
-[![PyPI](https://img.shields.io/pypi/v/ogb)](https://pypi.org/project/ogb/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/snap-stanford/ogb/blob/master/LICENSE)
-
-<img src="./docs/source/_static/logo.png" alt="The logo of Paddle Graph Learning (PGL)" width="320">
 
 [![PyPi Latest Release](https://img.shields.io/pypi/v/pgl.svg)](https://pypi.org/project/pgl/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
