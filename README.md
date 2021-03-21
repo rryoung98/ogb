@@ -28,9 +28,9 @@ epochs              400
 
 ### Reference performance for OGBL-collab:
 
-| Model                 |Valid Accuracy   | Parameters    | Hardware |
-| --------------------  | --------------- | ------------- |----------|
-| GCN                   | 0.5263  ± 0.150 | 296,449  | Tesla K80 |
-| GCN+DGN               | 0.5778  ± 0.636 | 429,571 | Tesla K80 |
-| GraphCONV             | 0.5378  ± 0.777 | 460,289 | Tesla K80 |
-| GraphCONV+DGN         | 0.5527  ± 0.311 | 593,411  | Tesla K80 |
+| Model                 | Test Accuracy | Valid Accuracy   | Parameters    | Hardware |
+| --------------------  | --------------- | ------------- |----------| ---------------|
+| GCN                   | 0.4475 ± 1.07 | 0.5263  ± 0.150 | 296,449  | Tesla K80 |
+| GCN+DGN               | 0.4916 ± 0.603 | 0.5778  ± 0.636 | 429,571 | Tesla K80 |
+| GraphCONV             | 0.4534 ± 0.85 | 0.5378  ± 0.777 | 460,289 | Tesla K80 |
+| GraphCONV+DGN         | 0.4685 ± 0.336 | 0.5527  ± 0.311 | 593,411  | Tesla K80 |
