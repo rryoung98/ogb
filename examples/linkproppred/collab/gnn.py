@@ -16,6 +16,7 @@ import numpy as np
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 
 from logger import Logger
+from tqdm import tqdm
 
 
 class GCN(torch.nn.Module):
@@ -285,7 +286,7 @@ def main():
         "Hits@100": Logger(args.runs, args),
     }
 
-    for run in range(args.runs):
+    for run in tqdm(range(args.runs)):
         torch.manual_seed(args.seed + run)
         np.random.seed(args.seed+run)
         model.reset_parameters()
