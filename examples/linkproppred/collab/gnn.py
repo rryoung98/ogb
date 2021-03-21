@@ -1,6 +1,9 @@
 import argparse
 
+from dgn import batch_norm
+
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
@@ -15,16 +18,20 @@ from logger import Logger
 
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
-                 dropout):
+                 dropout,type_norm='group'):
         super(GCN, self).__init__()
-
+        self.type_norm =type_norm
         self.convs = torch.nn.ModuleList()
         self.convs.append(GCNConv(in_channels, hidden_channels, cached=True))
         for _ in range(num_layers - 2):
             self.convs.append(
                 GCNConv(hidden_channels, hidden_channels, cached=True))
         self.convs.append(GCNConv(hidden_channels, out_channels, cached=True))
-
+        # we're  building up the normalization layers here.
+        if self.type_norm == 'group':
+            self.bns = nn.ModuleList([batch_norm(hidden_channels,'group',skip_connect = True) for i in range(num_layers)])
+        else:
+            self.bns = nn.ModuleList([nn.LayerNorm(hidden_channels) for i in range(num_layers)])
         self.dropout = dropout
 
     def reset_parameters(self):
@@ -32,8 +39,9 @@ class GCN(torch.nn.Module):
             conv.reset_parameters()
 
     def forward(self, x, adj_t):
-        for conv in self.convs[:-1]:
+        for i, conv in enumerate(self.convs[:-1]):
             x = conv(x, adj_t)
+            x = self.bns[i](x
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.convs[-1](x, adj_t)
