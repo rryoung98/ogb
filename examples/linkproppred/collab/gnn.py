@@ -287,7 +287,7 @@ def main():
 
     for run in range(args.runs):
         torch.manual_seed(args.seed + run)
-        np.random.seed(args.seed)
+        np.random.seed(args.seed+run)
         model.reset_parameters()
         predictor.reset_parameters()
         optimizer = torch.optim.Adam(
