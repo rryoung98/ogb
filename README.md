@@ -1,57 +1,36 @@
-<p align='center'>
-  <img width='40%' src='https://snap-stanford.github.io/ogb-web/assets/img/OGB_rectangle.png' />
-</p>
-
---------------------------------------------------------------------------------
-
-
-[![PyPi Latest Release](https://img.shields.io/pypi/v/pgl.svg)](https://pypi.org/project/pgl/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 ## Differential Group Normalization for GraphCONV and GCN
 
 This experiment is based on stanford OGB (1.2.1) benchmark. The description of 《Towards Deeper Graph Neural Networks with Differentiable Group Normalization》 is [avaiable here](https://arxiv.org/abs/2006.06972). The steps are:
 
 ### Note!
-We propose **DGN GraphCONV** and **DGN GCN* , where we extend our base model's width by implementing DGN, which allows for models to be deeper by incorporating soft clustering to the normalization. 
+We propose **DGN GraphCONV** and **DGN GCN** , where we extend our base model's width by implementing DGN, which allows for models to be deeper by incorporating soft clustering to the normalization. 
 
-### Install environment:
-``` 
-    git clone https://github.com/rryoung98/ogb/
-    cd ogb
-    pip install -e .
-    
-```
-### Arxiv dataset:
-  1. ```python main_arxiv.py --place 0 --log_file arxiv_baseline.txt``` to get the baseline result of arxiv dataset.
-  2. ```python main_arxiv.py --place 0 --use_label_e --log_file arxiv_unimp.txt``` to get the UniMP result of arxiv dataset.
-  3. ```python main_arxiv_large.py --place 0 --use_label_e --log_file arxiv_unimp_large.txt``` to get the UniMP_large result of arxiv dataset.
+### Environment:
+We recommend importing the given ipython notebook into Google Colab, which provides free GPUs and most of the packages needed to run this code already installed.
+
+### Baseline:
+Search for occurences of the code `self.bn` in the `GNN` class and comment that out (should be in two places) in order to run the baseline model without DGN. If you want to change between GCN and GraphConv, simply replace occurence of `GraphConv()` in `__init__()` with `GCNConv()` and vice-versa.
+
+### Running the Code
+Running the code is simple, just run all the cells in the notebook. In particular, running the last cell will perform one run of an experiment with the given random seed appiled to the `main()` function at the bottom of the last cell. In order to change the random seed for another run, simply change the value passed in to main.
   
 ### The **detailed hyperparameter** is:
 
 ```
-Collab_dataset:          
---num_layers        3                    
---hidden_size       128           
---num_heads         2            
---dropout           0.3           
---lr                0.001            
+num_layers          3
+hidden_channels     256
+num_batch_groups    2
+dropout             0.0
+batch_size          64 * 1024
+lr                  1e-3
+epochs              400
 ```
 
 ### Reference performance for OGBL-collab:
 
 | Model                 |Valid Accuracy   | Parameters    | Hardware |
-| ------------------  | --------------- | -------------- |----------|
-| GCN                 | 0.7367  ± 0.0012 | 468,369  | Tesla V100 (32GB) |
-| GCN+DGN             | 0.7450  ± 0.0005 | 473,489 | Tesla V100 (32GB) |
-| GraphCONV           | 0.7475  ± 0.0008 | 1,162,515 | Tesla V100 (32GB) |
-| GraphCONV+DGN       | 0.9286  ± 0.0017 | 1,470,905  | Tesla V100 (32GB) |
-   
-## Citing OGB
-```
-@article{hu2020ogb,
-  title={Open Graph Benchmark: Datasets for Machine Learning on Graphs},
-  author={Weihua Hu, Matthias Fey, Marinka Zitnik, Yuxiao Dong, Hongyu Ren, Bowen Liu, Michele Catasta, Jure Leskovec},
-  journal={arXiv preprint arXiv:2005.00687},
-  year={2020}
-}
-```
+| --------------------  | --------------- | ------------- |----------|
+| GCN                   | 0.5263  ± 0.150 | 296,449  | Tesla K80 |
+| GCN+DGN               | 0.5778  ± 0.636 | 429,571 | Tesla K80 |
+| GraphCONV             | 0.5378  ± 0.777 | 460,289 | Tesla K80 |
+| GraphCONV+DGN         | 0.5527  ± 0.311 | 593,411  | Tesla K80 |
