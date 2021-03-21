@@ -244,9 +244,8 @@ def main():
     data = T.ToSparseTensor()(data)
 
     split_edge = dataset.get_edge_split()
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
+
+    
     # Use training + validation edges for inference on test set.
     if args.use_valedges_as_input:
         val_edge_index = split_edge["valid"]["edge"].t()
@@ -287,6 +286,8 @@ def main():
     }
 
     for run in range(args.runs):
+        torch.manual_seed(args.seed + run)
+        np.random.seed(args.seed)
         model.reset_parameters()
         predictor.reset_parameters()
         optimizer = torch.optim.Adam(
