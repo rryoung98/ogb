@@ -229,7 +229,7 @@ def main():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--eval_steps", type=int, default=1)
-    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--seed",type=int,default=1)
     args = parser.parse_args()
     print(args)
